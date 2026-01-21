@@ -31,9 +31,9 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   declare_parameter<bool>("visualize", true);
   visualize_ = get_parameter("visualize").as_bool();
 
-  tracker_ = std::make_unique<JPDATracker>(get_clock(), max_dt);
+  tracker_ = std::make_unique<LMBTracker>(get_clock());
 
-  tracked_objects_pub_ = this->create_publisher<service_robot_msgs::msg::TrackedObjects>(
+  tracked_objects_pub_ = this->create_publisher<lidar_objects_tracker_msgs::msg::TrackedObjects>(
     "tracked_objects", 10);
   marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
     "tracked_objects_markers", 10);
@@ -61,18 +61,18 @@ void ObjectsTracker::scanCallback(
   tracker_->updateTracks(centroids);
 
   // Publish
-  service_robot_msgs::msg::TrackedObjects tracked_objects_msg;
+  lidar_objects_tracker_msgs::msg::TrackedObjects tracked_objects_msg;
   const auto & tracks = tracker_->getTracks();
   tracked_objects_msg.objects.reserve(tracks.size());
   for (const auto & [id, track] : tracks) {
-    service_robot_msgs::msg::TrackedObject tracked_object_msg;
+    lidar_objects_tracker_msgs::msg::TrackedObject tracked_object_msg;
     const Eigen::Vector4f & state = track.kf->state;
     tracked_object_msg.header = msg->header;
     tracked_object_msg.id = id;
-    tracked_object_msg.pose.position.x = state(0);
-    tracked_object_msg.pose.position.y = state(1);
-    tracked_object_msg.twist.linear.x = state(2);
-    tracked_object_msg.twist.linear.y = state(3);
+    tracked_object_msg.position.x = state(0);
+    tracked_object_msg.position.y = state(1);
+    tracked_object_msg.velocity.x = state(2);
+    tracked_object_msg.velocity.y = state(3);
     tracked_objects_msg.objects.push_back(tracked_object_msg);
   }
   tracked_objects_pub_->publish(tracked_objects_msg);

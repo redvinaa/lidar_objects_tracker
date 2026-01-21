@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="2">
+<package format="3">
   <name>lidar_objects_tracker</name>
   <version>0.0.0</version>
   <description>Segment and track objects in laserscan</description>
@@ -18,7 +18,7 @@
   <depend>sensor_msgs</depend>
   <depend>angles</depend>
   <depend>visualization_msgs</depend>
-  <depend>service_robot_msgs</depend>
+  <depend>lidar_objects_tracker_msgs</depend>
 
   <test_depend>ament_cmake_cppcheck</test_depend>
   <test_depend>ament_cmake_cpplint</test_depend>

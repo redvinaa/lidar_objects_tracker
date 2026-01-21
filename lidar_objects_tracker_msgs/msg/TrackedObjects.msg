@@ -1,0 +1,1 @@
+lidar_objects_tracker_msgs/TrackedObject[] objects

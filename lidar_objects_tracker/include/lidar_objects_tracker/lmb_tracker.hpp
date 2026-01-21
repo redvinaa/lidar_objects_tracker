@@ -6,8 +6,8 @@
  * Owner: Enjoy Robotics Zrt maintainer@enjoyrobotics.com, 2025
  */
 
-#ifndef LIDAR_OBJECTS_TRACKER__JPDA_TRACKER_HPP_
-#define LIDAR_OBJECTS_TRACKER__JPDA_TRACKER_HPP_
+#ifndef LIDAR_OBJECTS_TRACKER__LMB_TRACKER_HPP_
+#define LIDAR_OBJECTS_TRACKER__LMB_TRACKER_HPP_
 
 #include <vector>
 #include <map>
@@ -25,10 +25,10 @@ struct Track
   float existence_probability;
 };
 
-class JPDATracker
+class LMBTracker
 {
 public:
-  explicit JPDATracker(rclcpp::Clock::SharedPtr clock)
+  explicit LMBTracker(rclcpp::Clock::SharedPtr clock)
   : clock_(clock),
     last_update_time_(clock->now())
   {}
@@ -75,4 +75,4 @@ private:
 };
 
 }  // namespace lidar_objects_tracker
-#endif  // LIDAR_OBJECTS_TRACKER__JPDA_TRACKER_HPP_
+#endif  // LIDAR_OBJECTS_TRACKER__LMB_TRACKER_HPP_

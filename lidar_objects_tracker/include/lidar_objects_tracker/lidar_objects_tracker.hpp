@@ -16,12 +16,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
-#include "lidar_objects_tracker/jpda_tracker.hpp"
+#include "lidar_objects_tracker/lmb_tracker.hpp"
 
 #include <sensor_msgs/msg/laser_scan.hpp>
-#include <service_robot_msgs/msg/tracked_object.hpp>
-#include <service_robot_msgs/msg/tracked_objects.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
+#include "lidar_objects_tracker_msgs/msg/tracked_object.hpp"
+#include "lidar_objects_tracker_msgs/msg/tracked_objects.hpp"
 
 namespace lidar_objects_tracker
 {
@@ -39,7 +39,7 @@ public:
 
   CallbackReturn on_activate(const rclcpp_lifecycle::State &) override
   {
-    scan_sub_ = this->create_subscription<sensor_msgs::msg::LaserScan>(
+    scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
       "scan", 10,
       std::bind(&ObjectsTracker::scanCallback, this, std::placeholders::_1));
 
@@ -68,12 +68,12 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   // TODO(redvinaa): publish static and dynamic scans?
 
-  rclcpp_lifecycle::LifecyclePublisher<service_robot_msgs::msg::TrackedObjects>::SharedPtr
+  rclcpp_lifecycle::LifecyclePublisher<lidar_objects_tracker_msgs::msg::TrackedObjects>::SharedPtr
     tracked_objects_pub_;
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
     marker_pub_;
 
-  std::unique_ptr<JPDATracker> tracker_;
+  std::unique_ptr<LMBTracker> tracker_;
 
   // Parameters
   double cluster_neighbor_radius_;
