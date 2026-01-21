@@ -7,6 +7,7 @@
  */
 
 #include "lidar_objects_tracker/lidar_objects_tracker.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 #include <rclcpp_components/register_node_macro.hpp>
 
 namespace lidar_objects_tracker
@@ -46,6 +47,11 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
 void ObjectsTracker::scanCallback(
   const sensor_msgs::msg::LaserScan::ConstSharedPtr & msg)
 {
+  if (get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+    RCLCPP_WARN(get_logger(), "Node is not active. Skipping scan processing.");
+    return;
+  }
+
   // Convert LaserScan to 2D points
   const open3d::geometry::PointCloud pc = laserScanToPointCloud(msg);
 
@@ -62,7 +68,12 @@ void ObjectsTracker::scanCallback(
   }
 
   // Update tracker
-  tracker_->updateTracks(centroids);
+  const UpdateInfo track_update_info = tracker_->updateTracks(centroids);
+  RCLCPP_INFO(
+    get_logger(), "Track update: %zu births, %zu deaths, %zu total tracks",
+    track_update_info.births.size(),
+    track_update_info.deaths.size(),
+    tracker_->getTracks().size());
 
   // Publish
   lidar_objects_tracker_msgs::msg::TrackedObjects tracked_objects_msg;
@@ -109,55 +120,69 @@ void ObjectsTracker::scanCallback(
     }
     marker_array->markers.push_back(marker_centroids);
 
-    // // Tracked objects
-    // for (const auto & [id, track] : tracks) {
-    //   const Eigen::Vector4f & state = track.kf->state;
-    //   const Eigen::Matrix4f & P = track.kf->covariance;
+    // Tracked objects
+    for (const auto & [id, track] : tracks) {
+      const Eigen::Vector4f & state = track.kf->state;
+      const Eigen::Matrix4f & P = track.kf->covariance;
 
-    //   // Size and alpha based on covariance
-    //   const float pos_std = std::sqrt((P(0, 0) + P(1, 1)) / 2.0f);
-    //   const float scale = pos_std;
-    //   const float alpha = 1.0f - pos_std;
+      // Size and alpha based on covariance
+      const float pos_std = std::sqrt((P(0, 0) + P(1, 1)) / 2.0f);
+      const float scale = pos_std;
+      const float alpha = 1.0f - pos_std;
 
-    //   visualization_msgs::msg::Marker marker_track;
-    //   marker_track.header = msg->header;
-    //   marker_track.ns = "tracked_objects";
-    //   marker_track.id = id;
-    //   marker_track.type = visualization_msgs::msg::Marker::SPHERE;
-    //   marker_track.action = visualization_msgs::msg::Marker::ADD;
-    //   marker_track.scale.x = scale;
-    //   marker_track.scale.y = scale;
-    //   marker_track.scale.z = 0.01;
-    //   marker_track.color.r = 0.0;
-    //   marker_track.color.g = 1.0;
-    //   marker_track.color.b = 0.0;
-    //   marker_track.color.a = alpha;
+      visualization_msgs::msg::Marker marker_track;
+      marker_track.header = msg->header;
+      marker_track.ns = "tracked_objects";
+      marker_track.id = id;
+      marker_track.type = visualization_msgs::msg::Marker::SPHERE;
+      marker_track.action = visualization_msgs::msg::Marker::ADD;
+      marker_track.scale.x = scale;
+      marker_track.scale.y = scale;
+      marker_track.scale.z = 0.01;
+      marker_track.color.r = 0.0;
+      marker_track.color.g = 1.0;
+      marker_track.color.b = 0.0;
+      marker_track.color.a = alpha;
 
-    //   marker_track.pose.position.x = state(0);
-    //   marker_track.pose.position.y = state(1);
-    //   marker_track.pose.position.z = 0.0;
-    //   marker_array.markers.push_back(marker_track);
+      marker_track.pose.position.x = state(0);
+      marker_track.pose.position.y = state(1);
+      marker_track.pose.position.z = 0.0;
+      marker_array->markers.push_back(marker_track);
 
-    //   // Add text marker for ID
-    //   visualization_msgs::msg::Marker marker_id;
-    //   marker_id.header = msg->header;
-    //   marker_id.ns = "tracked_object_ids";
-    //   marker_id.id = id;
-    //   marker_id.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
-    //   marker_id.action = visualization_msgs::msg::Marker::ADD;
-    //   marker_id.scale.z = 0.3;
-    //   marker_id.color.r = 1.0;
-    //   marker_id.color.g = 1.0;
-    //   marker_id.color.b = 1.0;
-    //   marker_id.color.a = 1.0;
-    //   marker_id.pose.position.x = state(0);
-    //   marker_id.pose.position.y = state(1);
-    //   marker_id.pose.position.z = 0.5;
-    //   std::stringstream ss;
-    //   ss << id << "\nstd:" << std::setprecision(2) << pos_std;
-    //   marker_id.text = ss.str();
-    //   marker_array.markers.push_back(marker_id);
-    // }
+      // Add text marker for ID
+      visualization_msgs::msg::Marker marker_id;
+      marker_id.header = msg->header;
+      marker_id.ns = "tracked_object_ids";
+      marker_id.id = id;
+      marker_id.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+      marker_id.action = visualization_msgs::msg::Marker::ADD;
+      marker_id.scale.z = 0.2;
+      marker_id.color.r = 1.0;
+      marker_id.color.g = 1.0;
+      marker_id.color.b = 1.0;
+      marker_id.color.a = 1.0;
+      marker_id.pose.position.x = state(0);
+      marker_id.pose.position.y = state(1);
+      marker_id.pose.position.z = 0.5;
+      std::stringstream ss;
+      ss << "id:" << id << "\n";
+      ss << "std:" << std::setprecision(2) << pos_std << "\n";
+      ss << "exist_prob:" << std::setprecision(2) << track.existence_probability << "\n";
+      if (track_update_info.updates.size() > 0) {
+        ss << "meas:";
+        try {
+          for (const auto & [meas_idx, weight] : track_update_info.updates.at(id).measurement_weights) {
+            ss << meas_idx << ",";
+          }
+        } catch (const std::out_of_range &) {
+          ss << "n/a";
+        }
+      } else {
+        ss << "missed_det";
+      }
+      marker_id.text = ss.str();
+      marker_array->markers.push_back(marker_id);
+    }
 
     RCLCPP_INFO(
       get_logger(), "Publishing %zu markers for visualization",

@@ -26,6 +26,25 @@ struct Track
   float existence_probability;
 };
 
+struct UpdateInfo
+{
+  // Global update info
+  std::set<uint32_t> births;
+  std::set<uint32_t> deaths;
+
+  struct TrackUpdateInfo
+  {
+    std::map<size_t, float> measurement_weights;
+  };
+
+  // Per track update info
+  std::map<size_t, TrackUpdateInfo> updates;
+};
+
+/** @brief LMB Tracker for 2D point measurements
+ *
+ * Note: uint32_t is used for IDs, size_t for indices
+ */
 class LMBTracker
 {
 public:
@@ -34,8 +53,10 @@ public:
     last_update_time_(clock->now())
   {}
 
-  void updateTracks(const std::vector<Eigen::Vector2f> & measurements)
+  UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements)
   {
+    UpdateInfo update_info;
+
     // Used for births
     std::set<size_t> used_measurements;
 
@@ -44,21 +65,22 @@ public:
     const float dt = (current_time - last_update_time_).seconds();
     last_update_time_ = current_time;
     if (dt < 1e-6 || dt > 10.0) {
-      RCLCPP_WARN(
-        logger_,
-        "Unrealistic dt for prediction: %.3f s. Skipping prediction step.", dt);
-      return;
+      std::stringstream ss;
+      ss << "Unrealistic dt (" << dt << " s), skipping prediction step.";
+      throw std::runtime_error(ss.str());
     }
-    RCLCPP_INFO(logger_, "===============================");
-    RCLCPP_INFO(logger_, "Updating tracks with dt: %.3f s", dt);
+    RCLCPP_DEBUG(logger_, "===============================");
+    RCLCPP_DEBUG(logger_, "Updating tracks with dt: %.3f s", dt);
 
     for (auto & [id, track] : tracks_) {
+      update_info.updates.emplace(id, UpdateInfo::TrackUpdateInfo{});
+
       // Predict kalman filter and update existence probability
       track.kf->predict(dt);
       auto & r = track.existence_probability;
       r = std::clamp(r * survival_prob_, 0.0f, 1.0f);  // Clamp to [0, 1]
 
-      RCLCPP_INFO(
+      RCLCPP_DEBUG(
         logger_, "Track ID: %u, Existence Probability: %.3f",
         id, track.existence_probability);
 
@@ -75,13 +97,13 @@ public:
           ss << i << " ";
         }
       }
-      RCLCPP_INFO(logger_, "%s", ss.str().c_str());
+      RCLCPP_DEBUG(logger_, "%s", ss.str().c_str());
 
       // If no measurements, missed detection
       if (gated_indices.empty()) {
         track.existence_probability *= 1.0f - detection_prob_;
 
-        RCLCPP_INFO(
+        RCLCPP_DEBUG(
           logger_, "Missed detection for Track ID: %u, New Existence Probability: %.3f",
           id, track.existence_probability);
 
@@ -89,17 +111,19 @@ public:
       }
 
       // Update with all gated measurements (simplified, equal weights)
+      // TODO(redvinaa): Implement proper weighting
       Eigen::Vector2f combined_measurement = Eigen::Vector2f::Zero();
       const float w = 1.0f / static_cast<float>(gated_indices.size());
       for (const auto & meas_idx : gated_indices) {
         combined_measurement += measurements[meas_idx] / w;
+        update_info.updates[id].measurement_weights[meas_idx] = w;
       }
       track.kf->update(combined_measurement);
 
       // Update existence probability
       r = 1 - (1 - r) * (1 - detection_prob_);
 
-      RCLCPP_INFO(
+      RCLCPP_DEBUG(
         logger_, "Updated Track ID: %u, New Existence Probability: %.3f",
         id, track.existence_probability);
     }
@@ -109,7 +133,8 @@ public:
     for (const auto & [id, track] : tracks_) {
       if (track.existence_probability < death_existence_prob_) {
         tracks_to_erase.push_back(id);
-        RCLCPP_INFO(logger_, "Deleting Track ID: %u due to low existence probability", id);
+        update_info.deaths.insert(id);
+        RCLCPP_DEBUG(logger_, "Deleting Track ID: %u due to low existence probability", id);
       }
     }
     for (const auto & id : tracks_to_erase) {
@@ -139,10 +164,14 @@ public:
       new_track.existence_probability = birth_existence_prob_;
       tracks_.emplace(new_id, std::move(new_track));
 
-      RCLCPP_INFO(
+      update_info.births.insert(new_id);
+
+      RCLCPP_DEBUG(
         logger_, "Created new Track ID: %u at position (%.2f, %.2f)",
         new_id, meas(0), meas(1));
     }
+
+    return update_info;
   }
 
   inline const std::map<uint32_t, Track> & getTracks() const
@@ -153,15 +182,15 @@ public:
 private:
   std::map<uint32_t, Track> tracks_;
   rclcpp::Clock::SharedPtr clock_;  // To get dt
-  rclcpp::Logger logger_ = rclcpp::get_logger("JPDATracker");
+  rclcpp::Logger logger_ = rclcpp::get_logger("LMBTracker");
 
   float max_dt_;
   rclcpp::Time last_update_time_;
   float gate_threshold_ = 6.0f;  // ~95% confidence
-  float birth_existence_prob_ = 0.5f;
+  float birth_existence_prob_ = 0.2f;  // Keep low so multiple confirmations needed
   float death_existence_prob_ = 0.05f;
-  float survival_prob_ = 1.1f;
-  float detection_prob_ = 0.9f;
+  float survival_prob_ = 0.99f;  // P(existing object survives next step)
+  float detection_prob_ = 0.99f;  // P(existing object is detected)
 };
 
 }  // namespace lidar_objects_tracker
