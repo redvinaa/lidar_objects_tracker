@@ -69,7 +69,13 @@ void ObjectsTracker::scanCallback(
   }
 
   // Update tracker
-  const UpdateInfo track_update_info = tracker_->updateTracks(centroids);
+  UpdateInfo track_update_info;
+  try {
+    track_update_info = tracker_->updateTracks(centroids);
+  } catch (const std::runtime_error & e) {
+    RCLCPP_WARN(get_logger(), "Tracker update failed: %s", e.what());
+    return;
+  }
   RCLCPP_INFO(
     get_logger(), "Track update: %zu births, %zu deaths, %zu total tracks",
     track_update_info.births.size(),
