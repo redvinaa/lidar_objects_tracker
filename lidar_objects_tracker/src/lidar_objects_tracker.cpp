@@ -168,14 +168,11 @@ void ObjectsTracker::scanCallback(
       ss << "id:" << id << "\n";
       ss << "std:" << std::setprecision(2) << pos_std << "\n";
       ss << "exist_prob:" << std::setprecision(2) << track.existence_probability << "\n";
-      if (track_update_info.updates.size() > 0) {
+      if (track_update_info.updates.find(id) != track_update_info.updates.end()) {
         ss << "meas:";
-        try {
-          for (const auto & [meas_idx, weight] : track_update_info.updates.at(id).measurement_weights) {
-            ss << meas_idx << ",";
-          }
-        } catch (const std::out_of_range &) {
-          ss << "n/a";
+        const auto & weights = track_update_info.updates.at(id).measurement_weights;
+        for (const auto & [meas_idx, weight] : weights) {
+          ss << meas_idx << ",";
         }
       } else {
         ss << "missed_det";

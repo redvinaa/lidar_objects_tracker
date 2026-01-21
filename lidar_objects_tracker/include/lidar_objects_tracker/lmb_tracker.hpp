@@ -38,7 +38,7 @@ struct UpdateInfo
   };
 
   // Per track update info
-  std::map<size_t, TrackUpdateInfo> updates;
+  std::map<uint32_t, TrackUpdateInfo> updates;
 };
 
 /** @brief LMB Tracker for 2D point measurements
