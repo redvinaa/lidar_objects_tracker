@@ -150,6 +150,32 @@ void ObjectsTracker::scanCallback(
       marker_track.pose.position.z = 0.0;
       marker_array->markers.push_back(marker_track);
 
+      // Velocity arrow
+      visualization_msgs::msg::Marker marker_velocity;
+      marker_velocity.header = msg->header;
+      marker_velocity.ns = "tracked_object_velocities";
+      marker_velocity.id = id;
+      marker_velocity.type = visualization_msgs::msg::Marker::ARROW;
+      marker_velocity.action = visualization_msgs::msg::Marker::ADD;
+      marker_velocity.scale.x = 0.03;  // shaft diameter
+      marker_velocity.scale.y = 0.06;  // head diameter
+      marker_velocity.scale.z = 0.06;  // head length
+      marker_velocity.color.r = 0.0;
+      marker_velocity.color.g = 1.0;
+      marker_velocity.color.b = 0.0;
+      marker_velocity.color.a = alpha;
+      geometry_msgs::msg::Point start_point;
+      start_point.x = state(0);
+      start_point.y = state(1);
+      start_point.z = 0.0;
+      marker_velocity.points.push_back(start_point);
+      geometry_msgs::msg::Point end_point;
+      end_point.x = state(0) + state(2) * track_update_info.dt * 3;  // scale for visibility
+      end_point.y = state(1) + state(3) * track_update_info.dt * 3;
+      end_point.z = 0.0;
+      marker_velocity.points.push_back(end_point);
+      marker_array->markers.push_back(marker_velocity);
+
       // Add text marker for ID
       visualization_msgs::msg::Marker marker_id;
       marker_id.header = msg->header;
@@ -190,6 +216,13 @@ void ObjectsTracker::scanCallback(
       marker_delete.id = id;
       marker_delete.action = visualization_msgs::msg::Marker::DELETE;
       marker_array->markers.push_back(marker_delete);
+
+      visualization_msgs::msg::Marker marker_velocity_delete;
+      marker_velocity_delete.header = msg->header;
+      marker_velocity_delete.ns = "tracked_object_velocities";
+      marker_velocity_delete.id = id;
+      marker_velocity_delete.action = visualization_msgs::msg::Marker::DELETE;
+      marker_array->markers.push_back(marker_velocity_delete);
 
       visualization_msgs::msg::Marker marker_id_delete;
       marker_id_delete.header = msg->header;

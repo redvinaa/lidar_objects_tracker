@@ -29,6 +29,7 @@ struct Track
 struct UpdateInfo
 {
   // Global update info
+  float dt;
   std::set<uint32_t> births;
   std::set<uint32_t> deaths;
 
@@ -63,6 +64,7 @@ public:
     // Get dt since last update
     const rclcpp::Time current_time = clock_->now();
     const float dt = (current_time - last_update_time_).seconds();
+    update_info.dt = dt;
     last_update_time_ = current_time;
     if (dt < 1e-6 || dt > 10.0) {
       std::stringstream ss;
