@@ -20,7 +20,7 @@ protected:
 TEST_F(KalmanFilter2DTest, Initialization)
 {
     const Eigen::Vector4f x0{1.0f, 1.0f, 0.0f, 0.0f};
-    lidar_objects_tracker::KalmanFilter2D kf(x0);
+    lidar_objects_tracker::KalmanFilter2D kf(x0, 0.05, 0.1, 0.5);
 
     const Eigen::Vector4f x = kf.state;
     EXPECT_NEAR(x(0), 1.0f, 1e-6);
@@ -39,7 +39,7 @@ TEST_F(KalmanFilter2DTest, Initialization)
 TEST_F(KalmanFilter2DTest, Predict)
 {
     Eigen::Vector4f x0{1.0f, 1.0f, 0.0f, 0.0f};
-    lidar_objects_tracker::KalmanFilter2D kf(x0);
+    lidar_objects_tracker::KalmanFilter2D kf(x0, 0.05, 0.1, 0.5);
 
     const Eigen::Matrix4f P0 = kf.covariance;
     kf.predict(1.0f);
@@ -61,7 +61,7 @@ TEST_F(KalmanFilter2DTest, Predict)
 TEST_F(KalmanFilter2DTest, PredictAndUpdate)
 {
     Eigen::Vector4f x0{0.0f, 0.0f, 1.0f, 1.0f};
-    lidar_objects_tracker::KalmanFilter2D kf(x0);
+    lidar_objects_tracker::KalmanFilter2D kf(x0, 0.05, 0.1, 0.5);
 
     // Predict forward by 1 second
     kf.predict(1.0f);
