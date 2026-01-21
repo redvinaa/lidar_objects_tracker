@@ -150,7 +150,7 @@ void ObjectsTracker::scanCallback(
     marker_centroids.color.r = 1.0;
     marker_centroids.color.g = 0.0;
     marker_centroids.color.b = 0.0;
-    marker_centroids.color.a = 1.0;
+    marker_centroids.color.a = 0.5;
 
     for (const auto & centroid : centroids) {
       geometry_msgs::msg::Point p;
@@ -223,7 +223,7 @@ void ObjectsTracker::scanCallback(
       marker_id.id = id;
       marker_id.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
       marker_id.action = visualization_msgs::msg::Marker::ADD;
-      marker_id.scale.z = 0.2;
+      marker_id.scale.z = 0.1;
       marker_id.color.r = 1.0;
       marker_id.color.g = 1.0;
       marker_id.color.b = 1.0;
