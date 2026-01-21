@@ -182,6 +182,23 @@ void ObjectsTracker::scanCallback(
       marker_array->markers.push_back(marker_id);
     }
 
+    // Delete dead tracks' markers
+    for (const auto & id : track_update_info.deaths) {
+      visualization_msgs::msg::Marker marker_delete;
+      marker_delete.header = msg->header;
+      marker_delete.ns = "tracked_objects";
+      marker_delete.id = id;
+      marker_delete.action = visualization_msgs::msg::Marker::DELETE;
+      marker_array->markers.push_back(marker_delete);
+
+      visualization_msgs::msg::Marker marker_id_delete;
+      marker_id_delete.header = msg->header;
+      marker_id_delete.ns = "tracked_object_ids";
+      marker_id_delete.id = id;
+      marker_id_delete.action = visualization_msgs::msg::Marker::DELETE;
+      marker_array->markers.push_back(marker_id_delete);
+    }
+
     RCLCPP_INFO(
       get_logger(), "Publishing %zu markers for visualization",
       marker_array->markers.size());
