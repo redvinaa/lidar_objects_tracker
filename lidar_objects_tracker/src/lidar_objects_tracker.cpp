@@ -20,19 +20,53 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   declare_parameter<double>("cluster_neighbor_radius", 0.2);
   cluster_neighbor_radius_ = get_parameter("cluster_neighbor_radius").as_double();
 
-  declare_parameter<double>("max_dt", 1.0);
-  float max_dt = get_parameter("max_dt").as_double();
-
   declare_parameter<int>("cluster_min_points", 6);
   cluster_min_points_ = get_parameter("cluster_min_points").as_int();
 
   declare_parameter<int>("cluster_max_points", 50);
   cluster_max_points_ = get_parameter("cluster_max_points").as_int();
 
+  declare_parameter<double>("max_dt", 1.0);
+  float max_dt = get_parameter("max_dt").as_double();
+
+  declare_parameter<double>("gate_threshold", 6.0);
+  float gate_threshold = get_parameter("gate_threshold").as_double();
+
+  declare_parameter<double>("birth_existence_prob", 0.2);
+  float birth_existence_prob = get_parameter("birth_existence_prob").as_double();
+
+  declare_parameter<double>("death_existence_prob", 0.05);
+  float death_existence_prob = get_parameter("death_existence_prob").as_double();
+
+  declare_parameter<double>("survival_prob", 0.99);
+  float survival_prob = get_parameter("survival_prob").as_double();
+
+  declare_parameter<double>("detection_prob", 0.99);
+  float detection_prob = get_parameter("detection_prob").as_double();
+
+  declare_parameter<double>("kf_pos_uncertainty", 0.05);
+  float kf_pos_uncertainty = get_parameter("kf_pos_uncertainty").as_double();
+
+  declare_parameter<double>("kf_vel_uncertainty", 0.1);
+  float kf_vel_uncertainty = get_parameter("kf_vel_uncertainty").as_double();
+
+  declare_parameter<double>("kf_acc_uncertainty", 0.5);
+  float kf_acc_uncertainty = get_parameter("kf_acc_uncertainty").as_double();
+
   declare_parameter<bool>("visualize", true);
   visualize_ = get_parameter("visualize").as_bool();
 
-  tracker_ = std::make_unique<LMBTracker>(get_clock());
+  tracker_ = std::make_unique<LMBTracker>(
+    this->get_clock(),
+    max_dt,
+    gate_threshold,
+    birth_existence_prob,
+    death_existence_prob,
+    survival_prob,
+    detection_prob,
+    kf_pos_uncertainty,
+    kf_vel_uncertainty,
+    kf_acc_uncertainty);
 
   scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
     "scan", 10,

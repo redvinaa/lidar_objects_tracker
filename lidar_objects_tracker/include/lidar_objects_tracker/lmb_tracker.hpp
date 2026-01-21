@@ -49,9 +49,28 @@ struct UpdateInfo
 class LMBTracker
 {
 public:
-  explicit LMBTracker(rclcpp::Clock::SharedPtr clock)
+  LMBTracker(
+    rclcpp::Clock::SharedPtr clock,
+    float max_dt,
+    float gate_threshold,
+    float birth_existence_prob,
+    float death_existence_prob,
+    float survival_prob,
+    float detection_prob,
+    float kf_pos_uncertainty,
+    float kf_vel_uncertainty,
+    float kf_acc_uncertainty)
   : clock_(clock),
-    last_update_time_(clock->now())
+    last_update_time_(clock->now()),
+    max_dt_(max_dt),
+    gate_threshold_(gate_threshold),
+    birth_existence_prob_(birth_existence_prob),
+    death_existence_prob_(death_existence_prob),
+    survival_prob_(survival_prob),
+    detection_prob_(detection_prob),
+    kf_pos_uncertainty_(kf_pos_uncertainty),
+    kf_vel_uncertainty_(kf_vel_uncertainty),
+    kf_acc_uncertainty_(kf_acc_uncertainty)
   {}
 
   UpdateInfo updateTracks(const std::vector<Eigen::Vector2f> & measurements)
@@ -66,7 +85,7 @@ public:
     const float dt = (current_time - last_update_time_).seconds();
     update_info.dt = dt;
     last_update_time_ = current_time;
-    if (dt < 1e-6 || dt > 10.0) {
+    if (dt < 1e-6 || dt > max_dt_) {
       std::stringstream ss;
       ss << "Unrealistic dt (" << dt << " s), skipping prediction step.";
       throw std::runtime_error(ss.str());
@@ -153,7 +172,11 @@ public:
       const auto & meas = measurements[i];
       Eigen::Vector4f x0;
       x0 << meas(0), meas(1), 0.0f, 0.0f;  // Initial velocity zero
-      auto kf = std::make_shared<KalmanFilter2D>(x0);
+      auto kf = std::make_shared<KalmanFilter2D>(
+        x0,
+        kf_pos_uncertainty_,
+        kf_vel_uncertainty_,
+        kf_acc_uncertainty_);
 
       // Assign new ID
       uint32_t new_id = 0;
@@ -188,11 +211,14 @@ private:
 
   float max_dt_;
   rclcpp::Time last_update_time_;
-  float gate_threshold_ = 6.0f;  // ~95% confidence
-  float birth_existence_prob_ = 0.2f;  // Keep low so multiple confirmations needed
-  float death_existence_prob_ = 0.05f;
-  float survival_prob_ = 0.99f;  // P(existing object survives next step)
-  float detection_prob_ = 0.99f;  // P(existing object is detected)
+  float gate_threshold_;  // ~95% confidence
+  float birth_existence_prob_;  // Keep low so multiple confirmations needed
+  float death_existence_prob_;
+  float survival_prob_;  // P(existing object survives next step)
+  float detection_prob_;  // P(existing object is detected)
+  float kf_pos_uncertainty_;  // for Kalman Filter initialization, m
+  float kf_vel_uncertainty_;  // for Kalman Filter initialization, m/s
+  float kf_acc_uncertainty_;  // for Kalman Filter initialization, m/s^2
 };
 
 }  // namespace lidar_objects_tracker

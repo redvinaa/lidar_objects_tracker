@@ -31,9 +31,9 @@ public:
    */
   KalmanFilter2D(
     const Eigen::Vector4f & x0,
-    float pos_uncertainty = 0.05,
-    float vel_uncertainty = 0.2,
-    float acc_uncertainty = 0.5)
+    float pos_uncertainty,
+    float vel_uncertainty,
+    float acc_uncertainty)
   : state(x_), covariance(P_)
   {
     float pos_var = pos_uncertainty * pos_uncertainty;
