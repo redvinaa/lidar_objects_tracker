@@ -272,9 +272,6 @@ void ObjectsTracker::scanCallback(
       marker_array->markers.push_back(marker_id_delete);
     }
 
-    RCLCPP_INFO(
-      get_logger(), "Publishing %zu markers for visualization",
-      marker_array->markers.size());
     marker_pub_->publish(std::move(marker_array));
   }
 }
