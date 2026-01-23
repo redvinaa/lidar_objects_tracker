@@ -14,6 +14,7 @@ def generate_launch_description():
             ('scan', 'lidar/base/front/scan'),
         ],
         parameters=[
+            {'target_frame': 'odom'},
             {'cluster_neighbor_radius': 0.4},
             {'cluster_min_points': 10},
             {'cluster_max_points': 1000},
@@ -37,7 +38,7 @@ def generate_launch_description():
 
     bag_play = ExecuteProcess(
         cmd=[
-            'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_sensors'
+            'ros2', 'bag', 'play', '/home/ubuntu/ros2-service-robot/workspace/src/lidar_objects_tracker/rosbag2_filtered'
         ],
         output='screen'
     )
