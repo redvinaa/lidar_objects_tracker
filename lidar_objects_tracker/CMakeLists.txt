@@ -11,6 +11,8 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
 find_package(angles REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(lidar_objects_tracker_msgs REQUIRED)
@@ -26,6 +28,8 @@ set(DEPS
   sensor_msgs
   visualization_msgs
   tf2
+  tf2_ros
+  tf2_eigen
   angles
   Eigen3
   lidar_objects_tracker_msgs

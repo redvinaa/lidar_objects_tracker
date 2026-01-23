@@ -18,6 +18,9 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include "lidar_objects_tracker/lmb_tracker.hpp"
 
+#include "tf2_ros/buffer.hpp"
+#include "tf2_ros/transform_listener.hpp"
+
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include "lidar_objects_tracker_msgs/msg/tracked_object.hpp"
@@ -68,6 +71,9 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   // TODO(redvinaa): publish static and dynamic scans?
 
+  tf2_ros::Buffer::SharedPtr tf_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
   rclcpp_lifecycle::LifecyclePublisher<lidar_objects_tracker_msgs::msg::TrackedObjects>::SharedPtr
     tracked_objects_pub_;
   rclcpp_lifecycle::LifecyclePublisher<visualization_msgs::msg::MarkerArray>::SharedPtr
@@ -76,6 +82,7 @@ private:
   std::unique_ptr<LMBTracker> tracker_;
 
   // Parameters
+  std::string target_frame_;
   double cluster_neighbor_radius_;
   size_t cluster_min_points_;
   size_t cluster_max_points_;

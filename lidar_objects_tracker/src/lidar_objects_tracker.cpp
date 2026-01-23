@@ -8,6 +8,8 @@
 
 #include "lidar_objects_tracker/lidar_objects_tracker.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "tf2_eigen/tf2_eigen.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include <rclcpp_components/register_node_macro.hpp>
 
 namespace lidar_objects_tracker
@@ -17,6 +19,9 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
 : rclcpp_lifecycle::LifecycleNode("objects_tracker", options)
 {
   // Get parameters
+  declare_parameter<std::string>("target_frame", "odom");
+  target_frame_ = get_parameter("target_frame").as_string();
+
   declare_parameter<double>("cluster_neighbor_radius", 0.2);
   cluster_neighbor_radius_ = get_parameter("cluster_neighbor_radius").as_double();
 
@@ -56,6 +61,9 @@ ObjectsTracker::ObjectsTracker(const rclcpp::NodeOptions & options)
   declare_parameter<bool>("visualize", true);
   visualize_ = get_parameter("visualize").as_bool();
 
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
   tracker_ = std::make_unique<LMBTracker>(
     this->get_clock(),
     max_dt,
@@ -87,7 +95,22 @@ void ObjectsTracker::scanCallback(
   }
 
   // Convert LaserScan to 2D points
-  const open3d::geometry::PointCloud pc = laserScanToPointCloud(msg);
+  open3d::geometry::PointCloud pc = laserScanToPointCloud(msg);
+
+  {  // Transform
+    geometry_msgs::msg::TransformStamped tf_target_frame;
+    try {
+      tf_target_frame = tf_buffer_->lookupTransform(
+        target_frame_, msg->header.frame_id, msg->header.stamp,
+        rclcpp::Duration::from_seconds(0.5));
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_ERROR(get_logger(), "Could not transform %s to %s: %s",
+        msg->header.frame_id.c_str(), target_frame_.c_str(), ex.what());
+      return;
+    }
+    Eigen::Matrix4d transform = tf2::transformToEigen(tf_target_frame.transform).matrix();
+    pc = pc.Transform(transform);
+  }
 
   // Segment and calculate centroids
   const auto clusters = segment(pc);
@@ -123,7 +146,8 @@ void ObjectsTracker::scanCallback(
   for (const auto & [id, track] : tracks) {
     lidar_objects_tracker_msgs::msg::TrackedObject tracked_object_msg;
     const Eigen::Vector4f & state = track.kf->state;
-    tracked_object_msg.header = msg->header;
+    tracked_object_msg.header.frame_id = target_frame_;
+    tracked_object_msg.header.stamp = msg->header.stamp;
     tracked_object_msg.id = id;
     tracked_object_msg.position.x = state(0);
     tracked_object_msg.position.y = state(1);
@@ -172,7 +196,8 @@ void ObjectsTracker::scanCallback(
       const float alpha = 1.0f - pos_std;
 
       visualization_msgs::msg::Marker marker_track;
-      marker_track.header = msg->header;
+      marker_track.header.frame_id = target_frame_;
+      marker_track.header.stamp = msg->header.stamp;
       marker_track.ns = "tracked_objects";
       marker_track.id = id;
       marker_track.type = visualization_msgs::msg::Marker::SPHERE;
@@ -192,7 +217,8 @@ void ObjectsTracker::scanCallback(
 
       // Velocity arrow
       visualization_msgs::msg::Marker marker_velocity;
-      marker_velocity.header = msg->header;
+      marker_velocity.header.frame_id = target_frame_;
+      marker_velocity.header.stamp = msg->header.stamp;
       marker_velocity.ns = "tracked_object_velocities";
       marker_velocity.id = id;
       marker_velocity.type = visualization_msgs::msg::Marker::ARROW;
@@ -218,7 +244,8 @@ void ObjectsTracker::scanCallback(
 
       // Add text marker for ID
       visualization_msgs::msg::Marker marker_id;
-      marker_id.header = msg->header;
+      marker_id.header.frame_id = target_frame_;
+      marker_id.header.stamp = msg->header.stamp;
       marker_id.ns = "tracked_object_ids";
       marker_id.id = id;
       marker_id.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
@@ -251,21 +278,24 @@ void ObjectsTracker::scanCallback(
     // Delete dead tracks' markers
     for (const auto & id : track_update_info.deaths) {
       visualization_msgs::msg::Marker marker_delete;
-      marker_delete.header = msg->header;
+      marker_delete.header.frame_id = target_frame_;
+      marker_delete.header.stamp = msg->header.stamp;
       marker_delete.ns = "tracked_objects";
       marker_delete.id = id;
       marker_delete.action = visualization_msgs::msg::Marker::DELETE;
       marker_array->markers.push_back(marker_delete);
 
       visualization_msgs::msg::Marker marker_velocity_delete;
-      marker_velocity_delete.header = msg->header;
+      marker_velocity_delete.header.frame_id = target_frame_;
+      marker_velocity_delete.header.stamp = msg->header.stamp;
       marker_velocity_delete.ns = "tracked_object_velocities";
       marker_velocity_delete.id = id;
       marker_velocity_delete.action = visualization_msgs::msg::Marker::DELETE;
       marker_array->markers.push_back(marker_velocity_delete);
 
       visualization_msgs::msg::Marker marker_id_delete;
-      marker_id_delete.header = msg->header;
+      marker_id_delete.header.frame_id = target_frame_;
+      marker_id_delete.header.stamp = msg->header.stamp;
       marker_id_delete.ns = "tracked_object_ids";
       marker_id_delete.id = id;
       marker_id_delete.action = visualization_msgs::msg::Marker::DELETE;
