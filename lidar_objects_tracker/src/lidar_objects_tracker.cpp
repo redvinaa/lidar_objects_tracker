@@ -142,7 +142,7 @@ void ObjectsTracker::scanCallback(
     RCLCPP_WARN(get_logger(), "Tracker update failed: %s", e.what());
     return;
   }
-  RCLCPP_INFO(
+  RCLCPP_DEBUG(
     get_logger(), "Track update: %zu births, %zu deaths, %zu total tracks",
     track_update_info.births.size(),
     track_update_info.deaths.size(),
@@ -290,8 +290,8 @@ void ObjectsTracker::scanCallback(
       start_point.z = 0.0;
       marker_velocity.points.push_back(start_point);
       geometry_msgs::msg::Point end_point;
-      end_point.x = state(0) + state(2) * track_update_info.dt * 3;  // scale for visibility
-      end_point.y = state(1) + state(3) * track_update_info.dt * 3;
+      end_point.x = state(0) + state(2) * 1.0f;  // 1 second ahead
+      end_point.y = state(1) + state(3) * 1.0f;
       end_point.z = 0.0;
       marker_velocity.points.push_back(end_point);
       marker_array->markers.push_back(marker_velocity);
@@ -315,16 +315,7 @@ void ObjectsTracker::scanCallback(
       std::stringstream ss;
       ss << "id:" << id << "\n";
       ss << "std:" << std::setprecision(2) << pos_std << "\n";
-      ss << "exist_prob:" << std::setprecision(2) << track.existence_probability << "\n";
-      if (track_update_info.updates.find(id) != track_update_info.updates.end()) {
-        ss << "meas:";
-        const auto & weights = track_update_info.updates.at(id).measurement_weights;
-        for (const auto & [meas_idx, weight] : weights) {
-          ss << meas_idx << ",";
-        }
-      } else {
-        ss << "missed_det";
-      }
+      ss << "exist_prob:" << std::setprecision(2) << track.existence_probability;
       marker_id.text = ss.str();
       marker_array->markers.push_back(marker_id);
     }
