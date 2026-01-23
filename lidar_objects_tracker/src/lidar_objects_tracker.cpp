@@ -119,7 +119,7 @@ void ObjectsTracker::scanCallback(
   std::vector<std::optional<open3d::geometry::AxisAlignedBoundingBox>> bboxes;
   std::vector<Eigen::Vector2f> centroids;
   for (const auto & cluster : clusters) {
-    if (cluster.points_.size() < static_cast<size_t>(cluster_min_points_) ||
+    if (cluster_max_points_ > 0 &&
       cluster.points_.size() > static_cast<size_t>(cluster_max_points_))
     {
       continue;

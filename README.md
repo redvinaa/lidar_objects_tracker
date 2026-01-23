@@ -4,5 +4,4 @@ TODOs:
 - readme
 - optionally publish static (and dynamic?) scan
 - improve clustering
-- disable cluster max points by -1
 - delete leftover bbox markers
