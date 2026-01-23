@@ -14,13 +14,13 @@ def generate_launch_description():
             ('scan', 'lidar/base/front/scan'),
         ],
         parameters=[
-            {'cluster_neighbor_radius': 0.5},
+            {'cluster_neighbor_radius': 0.4},
             {'cluster_min_points': 10},
-            {'cluster_max_points': 10000},
-            {'birth_existence_prob': 0.05},
-            {'survival_prob': 0.8},
-            {'detection_prob': 0.8},
-            {'kf_acc_uncertainty': 0.1},
+            {'cluster_max_points': 1000},
+            {'birth_existence_prob': 0.01},
+            {'survival_prob': 0.999},
+            {'detection_prob': 0.2},
+            {'kf_acc_uncertainty': 0.6},
         ],
     )
 
