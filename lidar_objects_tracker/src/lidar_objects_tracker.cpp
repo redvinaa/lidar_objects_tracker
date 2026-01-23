@@ -6,10 +6,12 @@
  * Owner: Enjoy Robotics Zrt maintainer@enjoyrobotics.com, 2025
  */
 
+#include <optional>
 #include "lidar_objects_tracker/lidar_objects_tracker.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "tf2_eigen/tf2_eigen.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include <open3d/geometry/BoundingVolume.h>
 #include <rclcpp_components/register_node_macro.hpp>
 
 namespace lidar_objects_tracker
@@ -113,7 +115,8 @@ void ObjectsTracker::scanCallback(
   }
 
   // Segment and calculate centroids
-  const auto clusters = segment(pc);
+  const std::vector<open3d::geometry::PointCloud> clusters = segment(pc);
+  std::vector<std::optional<open3d::geometry::AxisAlignedBoundingBox>> bboxes;
   std::vector<Eigen::Vector2f> centroids;
   for (const auto & cluster : clusters) {
     if (cluster.points_.size() < static_cast<size_t>(cluster_min_points_) ||
@@ -123,6 +126,12 @@ void ObjectsTracker::scanCallback(
     }
 
     centroids.push_back(calculateCentroid(cluster));
+    try {
+      bboxes.push_back(cluster.GetAxisAlignedBoundingBox());
+    } catch (const std::exception & e) {
+      RCLCPP_WARN(get_logger(), "Could not compute bounding box for cluster: %s", e.what());
+      bboxes.push_back(std::nullopt);
+    }
   }
 
   // Update tracker
@@ -161,9 +170,10 @@ void ObjectsTracker::scanCallback(
   if (visualize_) {
     auto marker_array = std::make_unique<visualization_msgs::msg::MarkerArray>();
 
-    // Cluster centroids
+    // Cluster centroids and bounding boxes
     visualization_msgs::msg::Marker marker_centroids;
-    marker_centroids.header = msg->header;
+    marker_centroids.header.frame_id = target_frame_;
+    marker_centroids.header.stamp = msg->header.stamp;
     marker_centroids.ns = "centroids";
     marker_centroids.id = 0;
     marker_centroids.type = visualization_msgs::msg::Marker::SPHERE_LIST;
@@ -176,12 +186,56 @@ void ObjectsTracker::scanCallback(
     marker_centroids.color.b = 0.0;
     marker_centroids.color.a = 0.5;
 
-    for (const auto & centroid : centroids) {
+    visualization_msgs::msg::Marker default_bbox;
+    default_bbox.header.frame_id = target_frame_;
+    default_bbox.header.stamp = msg->header.stamp;
+    default_bbox.ns = "bounding_boxes";
+    // default_bbox.id = 0;
+    default_bbox.type = visualization_msgs::msg::Marker::LINE_LIST;
+    default_bbox.action = visualization_msgs::msg::Marker::ADD;
+    default_bbox.scale.x = 0.01;
+    default_bbox.color.r = 1.0;
+    default_bbox.color.g = 0.0;
+    default_bbox.color.b = 0.0;
+    default_bbox.color.a = 1.0;
+
+    for (size_t i = 0; i < centroids.size(); ++i) {
+      // Get centroid and bbox
+      const auto & centroid = centroids[i];
+      const auto & bbox = bboxes[i];
+
+      // Centroid marker
       geometry_msgs::msg::Point p;
       p.x = centroid.x();
       p.y = centroid.y();
       p.z = 0.0;
       marker_centroids.points.push_back(p);
+
+      // Bounding box marker
+      if (bbox.has_value()) {
+        visualization_msgs::msg::Marker bbox_marker = default_bbox;
+        bbox_marker.id = static_cast<int>(i);
+        const Eigen::Vector3d min_bound = bbox->min_bound_;
+        const Eigen::Vector3d max_bound = bbox->max_bound_;
+        std::vector<Eigen::Vector3d> corners(8);
+        corners[0] = Eigen::Vector3d(min_bound.x(), min_bound.y(), 0.0);
+        corners[1] = Eigen::Vector3d(max_bound.x(), min_bound.y(), 0.0);
+        corners[2] = Eigen::Vector3d(max_bound.x(), max_bound.y(), 0.0);
+        corners[3] = Eigen::Vector3d(min_bound.x(), max_bound.y(), 0.0);
+        // Lines
+        for (size_t j = 0; j < 4; ++j) {
+          geometry_msgs::msg::Point p1, p2;
+          p1.x = corners[j].x();
+          p1.y = corners[j].y();
+          p1.z = 0.0;
+          p2.x = corners[(j + 1) % 4].x();
+          p2.y = corners[(j + 1) % 4].y();
+          p2.z = 0.0;
+          bbox_marker.points.push_back(p1);
+          bbox_marker.points.push_back(p2);
+        }
+        marker_array->markers.push_back(bbox_marker);
+      }
     }
     marker_array->markers.push_back(marker_centroids);
 

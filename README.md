@@ -4,4 +4,4 @@ TODOs:
 - readme
 - improve clustering
 - disable cluster max points by -1
-- visualize cluster bounding shape
+- delete leftover bbox markers
